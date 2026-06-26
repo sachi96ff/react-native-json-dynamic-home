@@ -1,0 +1,399 @@
+# JSON App Builder Engine (React Native)
+
+A powerful, highly extensible, standalone **JSON-to-React-Native-UI rendering engine**. Build entire React Native screens or embeddable components dynamically directly from JSON configuration. 
+
+Perfect for Server-Driven UI (SDUI), live A/B testing, no-code/low-code builders, and delivering dynamic content without pushing app updates.
+
+> **Note:** This package uses the **exact same JSON schema** as its Flutter counterpart (`json_dynamic_home`). Your backend serves the same JSON for both Flutter and React Native apps!
+
+---
+
+## ✨ Features
+
+- **100% Decoupled Architecture:** No hardcoded app dependencies. Uses React Native's `useColorScheme()` to adapt to Light/Dark modes instantly.
+- **Advanced Caching Engine:** Built-in `JsonLoaderService` handles network requests and local caching via `AsyncStorage`.
+- **Native Action Registry:** Trigger native JavaScript/TypeScript code (like purchases, dialogs, analytics) directly from JSON clicks.
+- **Conditional Routing:** Support premium vs free user flows by pointing different user cohorts to different JSON configurations.
+- **Flexible Embedding:** Use `DynamicScreen` to render full, standalone pages, or `DynamicWidgetArea` to inject a small JSON snippet directly into an existing React Native view.
+
+---
+
+## 🚀 Installation
+
+### 1. Install the package
+
+```bash
+# As a local dependency
+npm install ../react-native-json-dynamic-home
+# or
+yarn add ../react-native-json-dynamic-home
+```
+
+### 2. Install peer dependencies
+
+```bash
+npm install @react-native-async-storage/async-storage
+# Optional (for icons):
+npm install lucide-react-native react-native-svg
+```
+
+---
+
+## 🛠️ Quick Start
+
+### 1. Global Setup
+Configure the global network behavior in your app entry. You only need to do this once.
+
+```tsx
+import { JsonLoaderService } from 'react-native-json-dynamic-home';
+
+// Set the base URL where your JSON files are hosted
+JsonLoaderService.defaultBaseUrl = 'https://api.yourdomain.com/dynamic_ui';
+
+// (Optional) Pass API keys or Auth Tokens
+JsonLoaderService.defaultHeaders = {
+  'Authorization': 'Bearer YOUR_TOKEN_HERE',
+};
+
+// (Optional) Set AsyncStorage for persistent caching
+import AsyncStorage from '@react-native-async-storage/async-storage';
+JsonLoaderService.asyncStorage = AsyncStorage;
+```
+
+### 2. Create the Engine
+Create an instance of `JsonWidgetEngine`. You can pass it globally via Context, or instantiate it where needed.
+
+```tsx
+import { JsonWidgetEngine } from 'react-native-json-dynamic-home';
+
+const engine = new JsonWidgetEngine();
+```
+
+---
+
+## 📱 Displaying the UI
+
+There are two primary ways to show your JSON-driven UI:
+
+### A. Full Screen (`DynamicScreen`)
+Use this when your JSON file represents an entire page (like a Settings page, a Profile view, or an Onboarding screen). It provides a header bar, handles scrolling, and supports pull-to-refresh automatically.
+
+```tsx
+import { DynamicScreen } from 'react-native-json-dynamic-home';
+
+// In your navigation:
+<DynamicScreen
+  jsonFile="home.json"  // Will fetch from {defaultBaseUrl}/home.json
+  engine={engine}
+  onBack={() => navigation.goBack()}
+/>
+```
+
+### B. Embeddable Component (`DynamicWidgetArea`)
+Use this when you want to render a smaller JSON snippet *inside* an existing React Native screen (like a dynamic promotional banner inside your static home feed).
+
+```tsx
+import { DynamicWidgetArea } from 'react-native-json-dynamic-home';
+
+const HomeScreen = () => (
+  <ScrollView>
+    <Text>Static React Native Content Here</Text>
+    
+    {/* Inject dynamic JSON UI cleanly! */}
+    <DynamicWidgetArea jsonFile="promotional_banner.json" />
+    
+    <Text>More static content below...</Text>
+  </ScrollView>
+);
+```
+
+### C. Dynamic URL Routing (A/B Testing, Themes, User State)
+
+Since the `jsonFile` parameter is just a string passed from your React Native app, you have complete control over *which* JSON file to load.
+
+```tsx
+function determineScreenLayout(user) {
+  if (user.isPremium) return 'home_premium.json';
+  if (colorScheme === 'dark') return 'home_dark.json';
+  if (AppConfig.abTestGroup === 'B') return 'home_experiment_b.json';
+  return 'home_default.json';
+}
+
+<DynamicScreen
+  jsonFile={determineScreenLayout(currentUser)}
+  engine={engine}
+/>
+```
+
+### D. Custom Loading & Error States
+
+```tsx
+<DynamicScreen
+  jsonFile="home.json"
+  engine={engine}
+  loadingComponent={<ActivityIndicator size="large" color="blue" />}
+  errorBuilder={(error, onRetry) => (
+    <View style={{ alignItems: 'center', padding: 40 }}>
+      <Text>Oops! No Internet connection.</Text>
+      <Button title="Try Again" onPress={onRetry} />
+    </View>
+  )}
+/>
+```
+
+### E. Built-in Pull-to-Refresh
+
+`DynamicScreen` supports **Pull-to-Refresh** out of the box.
+
+---
+
+## ⚡ Interactivity & Native Actions
+
+### 1. Universal Screen Navigation (`navigate`)
+
+```json
+{
+  "type": "Button",
+  "properties": {
+    "text": "Open Details Page",
+    "on_click": {
+      "action": "navigate",
+      "json_file": "details.json",
+      "params": {
+        "title": "Details Page"
+      }
+    }
+  }
+}
+```
+
+For navigation to work, set the navigation ref on the engine:
+
+```tsx
+const engine = new JsonWidgetEngine();
+engine.setNavigationRef({
+  navigate: (screen, params) => navigation.navigate(screen, params),
+  goBack: () => navigation.goBack(),
+});
+```
+
+### 2. Custom Native Actions (`NativeActionRegistry`)
+
+#### A. Register the Action in React Native
+```tsx
+const engine = new JsonWidgetEngine();
+
+engine.actionRegistry.register('purchase_item', (params) => {
+  const itemId = params.item_id;
+  console.log(`User is purchasing: ${itemId}`);
+  // Trigger your native in-app purchase logic here!
+});
+
+engine.actionRegistry.register('show_toast', (params) => {
+  Alert.alert('', params.message ?? 'Hello!');
+});
+```
+
+#### B. Trigger it from JSON
+```json
+{
+  "type": "Button",
+  "properties": {
+    "text": "Buy Premium Now",
+    "on_click": {
+      "action": "purchase_item",
+      "params": {
+        "item_id": "premium_monthly_99"
+      }
+    }
+  }
+}
+```
+
+---
+
+## 📊 Global Analytics & Tracking
+
+### 1. Create your Analytics Delegate
+```tsx
+import { JsonAnalyticsDelegate } from 'react-native-json-dynamic-home';
+
+const myAnalytics: JsonAnalyticsDelegate = {
+  logEvent: (eventName, parameters) => {
+    analytics.track(eventName, parameters);
+  },
+  logScreenView: (screenName) => {
+    analytics.screen(screenName);
+  },
+};
+```
+
+### 2. Pass it to the Engine
+```tsx
+const engine = new JsonWidgetEngine({
+  analyticsDelegate: myAnalytics,
+});
+```
+
+### 3. Trigger Analytics from JSON
+```json
+{
+  "type": "Button",
+  "analytics": {
+    "event_name": "buy_premium_clicked",
+    "params": {
+      "location": "home_banner"
+    }
+  },
+  "properties": {
+    "text": "Buy Premium",
+    "on_click": {
+      "action": "navigate",
+      "json_file": "premium.json"
+    }
+  }
+}
+```
+
+---
+
+## 🔒 Visibility & Routing (Premium / Auth)
+
+### 1. Conditionally Load Different JSON Files
+```tsx
+function getHomeScreenUrl(user) {
+  if (user.isPremium) return 'home_premium.json';
+  if (user.isLoggedIn) return 'home_logged_in.json';
+  return 'home_guest.json';
+}
+
+<DynamicScreen
+  jsonFile={getHomeScreenUrl(currentUser)}
+  engine={engine}
+/>
+```
+
+### 2. Static Visibility Toggle
+```json
+{
+  "type": "Card",
+  "visibility": {
+    "visible": false
+  },
+  "properties": {
+    "text": "Hidden Content"
+  }
+}
+```
+
+---
+
+## 🏗️ Supported Widgets
+
+**Content Widgets:**
+- `Title` (or `H1`, `Heading`)
+- `Subtitle` (or `H2`)
+- `Text` (or `Paragraph`)
+- `Image` (or `NetworkImage`)
+- `Banner`
+- `Icon`
+- `Divider`
+
+**Interactive Widgets:**
+- `Button`
+- `IconButton`
+- `Card` (or `DynamicCard`)
+
+**Layout & Spacing Widgets:**
+- `Column`
+- `Row`
+- `Container`
+- `Padding`
+- `SizedBox` (or `Spacer`)
+- `Expanded`
+- `Center`
+- `Grid`
+- `List`
+- `HorizontalList`
+
+---
+
+## 🎨 JSON Schema Example
+
+```json
+{
+  "appBarTitle": "My Dynamic Page",
+  "scrollable": true,
+  "background": "#F5F5F5",
+  "widgets": [
+    {
+      "type": "Title",
+      "properties": {
+        "text": "Welcome Back!"
+      },
+      "style": {
+        "margin": { "left": 16, "top": 16, "right": 16, "bottom": 8 }
+      }
+    },
+    {
+      "type": "Card",
+      "children": [
+        {
+          "type": "Text",
+          "properties": {
+            "text": "This whole card and its contents are rendered dynamically from JSON!"
+          }
+        },
+        {
+          "type": "Button",
+          "properties": {
+            "text": "Learn More",
+            "on_click": {
+              "action": "open_url",
+              "url": "https://example.com"
+            }
+          },
+          "style": {
+            "margin": { "top": 16 }
+          }
+        }
+      ],
+      "style": {
+        "margin": { "left": 16, "top": 0, "right": 16, "bottom": 16 },
+        "padding": 16,
+        "radius": 12,
+        "background": "#FFFFFF",
+        "elevation": 2
+      }
+    }
+  ]
+}
+```
+
+### Styling
+The `style` object supports standard styling properties:
+- `margin` and `padding` (number for uniform, or object `{ top, bottom, left, right }` or `{ vertical, horizontal }`)
+- `background` (hex color like `"#FF0000"`)
+- `textColor` / `text_color` (for text/icons)
+- `radius` (border radius number)
+- `width` / `height` (number or `"auto"` or `"50%"`)
+- `alignment` (`"center"`, `"topLeft"`, etc.)
+- `elevation` / `shadow` (number / boolean)
+
+---
+
+## 🔄 Same JSON for Flutter & React Native
+
+This package is designed to be a **1:1 React Native equivalent** of the Flutter `json_dynamic_home` package. Both packages:
+
+- Parse the **exact same JSON schema**
+- Support the **same widget types**
+- Handle the **same action types** (`navigate`, `open_url`, custom actions)
+- Use the **same styling system**
+- Provide the **same caching strategy**
+
+Your backend can serve **one JSON file** that works on both Flutter and React Native apps!
+
+---
+
+Built with ❤️. Give your apps the power of dynamic content delivery.
