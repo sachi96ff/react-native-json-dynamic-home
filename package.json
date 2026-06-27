@@ -1,6 +1,6 @@
 {
   "name": "react-native-json-dynamic-home",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A powerful JSON-to-React-Native-UI rendering engine. Build entire React Native screens from JSON configuration. Perfect for server-driven UI, no-code app builders, and dynamic content delivery.",
   "main": "src/index.ts",
   "types": "src/index.ts",

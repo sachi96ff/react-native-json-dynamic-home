@@ -1,7 +1,7 @@
 // src/engine/WidgetRegistry.tsx
 
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, Image, Switch as RNSwitch, StyleSheet } from 'react-native';
 import { WidgetNode } from '../models/WidgetNode';
 import type { JsonWidgetEngine } from './JsonWidgetEngine';
 import { StyleParser } from './StyleParser';
@@ -143,6 +143,16 @@ export class WidgetRegistry {
     this.registerSimple('Paragraph', DynamicText.build);
     this.registerSimple('NetworkImage', DynamicImage.build);
     this.registerSimple('Divider', this.buildDivider);
+
+    // ─── New Advanced Widgets ─────────────────────────────────
+    this.registerEngine('Stack', this.buildStack);
+    this.registerEngine('Wrap', this.buildWrap);
+    this.registerSimple('Chip', this.buildChip);
+    this.registerSimple('TextInput', this.buildTextInput);
+    this.registerSimple('ProgressBar', this.buildProgressBar);
+    this.registerEngine('Badge', this.buildBadge);
+    this.registerSimple('Avatar', this.buildAvatar);
+    this.registerSimple('Switch', this.buildSwitch);
   }
 
   /** Built-in divider widget. */
@@ -163,6 +173,207 @@ export class WidgetRegistry {
           marginVertical: node.properties.height ?? 0.5,
         }}
       />
+    );
+  }
+
+  /** Stack widget — overlapping children. */
+  private buildStack(node: WidgetNode, isDark: boolean, engine: JsonWidgetEngine): React.ReactElement {
+    const children = node.children.map((child, i) =>
+      React.cloneElement(engine.buildWidget(child, isDark), { key: `s_${i}` })
+    );
+
+    return (
+      <View style={{ position: 'relative', minHeight: (node.style?.height ?? 200) as import('react-native').DimensionValue }}>
+        {children.map((child, i) => (
+          <View key={`stack_${i}`} style={i === 0 ? {} : { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+            {child}
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  /** Wrap widget — flow layout. */
+  private buildWrap(node: WidgetNode, isDark: boolean, engine: JsonWidgetEngine): React.ReactElement {
+    const spacing = node.properties.spacing ?? 8;
+    const runSpacing = node.properties.runSpacing ?? 8;
+
+    const children = node.children.map((child, i) =>
+      React.cloneElement(engine.buildWidget(child, isDark), { key: `w_${i}` })
+    );
+
+    return (
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing, rowGap: runSpacing }}>
+        {children}
+      </View>
+    );
+  }
+
+  /** Chip widget — small label/tag. */
+  private buildChip(node: WidgetNode, isDark: boolean): React.ReactElement {
+    const text = node.properties.text ?? 'Chip';
+    const variant = node.properties.variant ?? 'filled';
+    const bgColor = node.style?.background ?? '#EEF2FF';
+    const textColor = node.style?.textColor ?? '#4338CA';
+    const radius = node.style?.radius ?? 20;
+
+    const chipStyle: any = {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: radius,
+    };
+
+    if (variant === 'outlined') {
+      chipStyle.borderWidth = 1.5;
+      chipStyle.borderColor = textColor;
+      chipStyle.backgroundColor = 'transparent';
+    } else {
+      chipStyle.backgroundColor = bgColor;
+    }
+
+    return (
+      <View style={chipStyle}>
+        <View><Text style={{ color: textColor, fontSize: node.style?.fontSize ?? 12, fontWeight: '500' }}>{text}</Text></View>
+      </View>
+    );
+  }
+
+  /** TextInput widget — text field preview. */
+  private buildTextInput(node: WidgetNode, isDark: boolean): React.ReactElement {
+    const label = node.properties.label ?? '';
+    const placeholder = node.properties.placeholder ?? 'Enter text...';
+    const hint = node.properties.hint ?? '';
+    const required = node.properties.required ?? false;
+    const radius = node.style?.radius ?? 12;
+
+    return (
+      <View style={{ width: '100%' }}>
+        {label ? (
+          <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+            <Text style={{ fontSize: 13, fontWeight: '500', color: '#374151' }}>{label}</Text>
+            {required && <Text style={{ color: '#EF4444', marginLeft: 2 }}> *</Text>}
+          </View>
+        ) : null}
+        <View style={{
+          borderWidth: 1, borderColor: '#D1D5DB', borderRadius: radius,
+          padding: 12, backgroundColor: '#FFFFFF',
+        }}>
+          <Text style={{ color: '#9CA3AF', fontSize: 14 }}>{placeholder}</Text>
+        </View>
+        {hint ? <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{hint}</Text> : null}
+      </View>
+    );
+  }
+
+  /** ProgressBar widget — linear progress indicator. */
+  private buildProgressBar(node: WidgetNode, isDark: boolean): React.ReactElement {
+    const value = Math.min(1, Math.max(0, node.properties.value ?? 0.65));
+    const label = node.properties.label ?? '';
+    const showLabel = node.properties.show_label !== false;
+    const trackColor = node.properties.track_color ?? '#E5E7EB';
+    const barColor = node.properties.bar_color ?? '#6366F1';
+    const height = node.style?.height ?? 8;
+    const radius = node.style?.radius ?? 4;
+
+    return (
+      <View style={{ width: '100%' }}>
+        {showLabel && label ? (
+          <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{label}</Text>
+        ) : null}
+        <View style={{ height: height as import('react-native').DimensionValue, borderRadius: radius, backgroundColor: trackColor, overflow: 'hidden' }}>
+          <View style={{ width: `${value * 100}%`, height: '100%', borderRadius: radius, backgroundColor: barColor }} />
+        </View>
+      </View>
+    );
+  }
+
+  /** Badge widget — notification badge. */
+  private buildBadge(node: WidgetNode, isDark: boolean, engine: JsonWidgetEngine): React.ReactElement {
+    const count = node.properties.count ?? 0;
+    const maxCount = node.properties.max_count ?? 99;
+    const showDot = node.properties.show_dot ?? false;
+    const badgeColor = node.properties.badge_color ?? '#EF4444';
+    const display = count > maxCount ? `${maxCount}+` : `${count}`;
+
+    const children = node.children.map((child, i) =>
+      React.cloneElement(engine.buildWidget(child, isDark), { key: `b_${i}` })
+    );
+
+    const childContent = children.length > 0 ? children[0] : <View style={{ width: 24, height: 24 }} />;
+
+    return (
+      <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
+        {childContent}
+        {showDot ? (
+          <View style={{
+            position: 'absolute', top: -3, right: -3,
+            width: 10, height: 10, borderRadius: 5,
+            backgroundColor: badgeColor, borderWidth: 2, borderColor: 'white',
+          }} />
+        ) : count > 0 ? (
+          <View style={{
+            position: 'absolute', top: -6, right: -6,
+            minWidth: 18, height: 18, borderRadius: 9,
+            backgroundColor: badgeColor, justifyContent: 'center',
+            alignItems: 'center', paddingHorizontal: 4,
+            borderWidth: 2, borderColor: 'white',
+          }}>
+            <Text style={{ color: 'white', fontSize: 10, fontWeight: '700' }}>{display}</Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+
+  /** Avatar widget — circular user image. */
+  private buildAvatar(node: WidgetNode, isDark: boolean): React.ReactElement {
+    const imageUrl = node.properties.image_url ?? '';
+    const text = node.properties.text ?? 'U';
+    const size = node.properties.size ?? 48;
+    const bgColor = node.style?.background ?? '#6366F1';
+
+    return (
+      <View style={{
+        width: size, height: size, borderRadius: size / 2,
+        backgroundColor: bgColor, justifyContent: 'center',
+        alignItems: 'center', overflow: 'hidden',
+      }}>
+        {imageUrl ? (
+          <View><Image source={{ uri: imageUrl }} style={{ width: size, height: size }} /></View>
+        ) : (
+          <Text style={{
+            color: 'white', fontSize: size * 0.4,
+            fontWeight: '700', textTransform: 'uppercase',
+          }}>
+            {text.substring(0, 2)}
+          </Text>
+        )}
+      </View>
+    );
+  }
+
+  /** Switch widget — toggle switch. */
+  private buildSwitch(node: WidgetNode, isDark: boolean): React.ReactElement {
+    const label = node.properties.label ?? '';
+    const subtitle = node.properties.subtitle ?? '';
+    const value = node.properties.value ?? false;
+    const activeColor = node.properties.active_color ?? '#6366F1';
+
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <View style={{ flex: 1 }}>
+          {label ? <Text style={{ fontSize: 14, fontWeight: '500', color: '#1E293B' }}>{label}</Text> : null}
+          {subtitle ? <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{subtitle}</Text> : null}
+        </View>
+        <RNSwitch
+          value={value}
+          disabled
+          trackColor={{ false: '#D1D5DB', true: activeColor }}
+          thumbColor={'white'}
+        />
+      </View>
     );
   }
 }

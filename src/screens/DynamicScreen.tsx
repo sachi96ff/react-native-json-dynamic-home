@@ -22,6 +22,7 @@ import { DynamicScreenConfig } from '../models/DynamicScreenConfig';
 import { JsonLoaderService } from '../services/JsonLoaderService';
 import { StyleParser } from '../engine/StyleParser';
 import { DynamicIcon } from '../widgets/content/DynamicIcon';
+import { ActionHandler } from '../engine/ActionHandler';
 
 /**
  * Universal screen that renders its entire UI from a JSON file.
@@ -149,11 +150,24 @@ export const DynamicScreen: React.FC<DynamicScreenProps> = ({
       );
     }
 
+    const usePullToRefresh = config.pullToRefresh !== false;
+
+    if (usePullToRefresh) {
+      return (
+        <ScrollView
+          refreshControl={
+            <RefreshControl refreshing={false} onRefresh={refresh} />
+          }
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          {engine.buildScreen(config, isDark)}
+        </ScrollView>
+      );
+    }
+
     return (
       <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={false} onRefresh={refresh} />
-        }
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1 }}
       >
@@ -163,64 +177,127 @@ export const DynamicScreen: React.FC<DynamicScreenProps> = ({
   };
 
   const showHeader = config == null || config.showHeader;
+  const useSafeArea = config?.safeArea !== false;
 
-  return (
-    <View style={[styles.container, { backgroundColor: bgColor }]}>
-      <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-      />
-      <SafeAreaView style={{ flex: 1 }}>
-        {/* AppBar */}
-        {showHeader && (
-          <View
-            style={[styles.appBar, { backgroundColor: headerBg }]}
+  // Resolve status bar style from config
+  let barStyle: 'light-content' | 'dark-content' = isDark ? 'light-content' : 'dark-content';
+  if (config?.statusBarStyle === 'light') {
+    barStyle = 'light-content';
+  } else if (config?.statusBarStyle === 'dark') {
+    barStyle = 'dark-content';
+  }
+
+  // Background image support
+  const bgImageUrl = config?.backgroundImage;
+  let resizeMode: 'cover' | 'contain' | 'stretch' | 'center' = 'cover';
+  if (config?.backgroundFit === 'contain') resizeMode = 'contain';
+  else if (config?.backgroundFit === 'fill') resizeMode = 'stretch';
+  else if (config?.backgroundFit === 'none') resizeMode = 'center';
+
+  // FAB support
+  const fabConfig = config?.fab;
+  const showFab = fabConfig?.icon;
+
+  const innerContent = (
+    <>
+      {/* AppBar */}
+      {showHeader && (
+        <View
+          style={[styles.appBar, { backgroundColor: headerBg }]}
+        >
+          <TouchableOpacity
+            onPress={onBack}
+            style={styles.backButton}
           >
-            <TouchableOpacity
-              onPress={onBack}
-              style={styles.backButton}
-            >
-              {config?.headerBackIcon ? (
-                DynamicIcon.renderIcon(
-                  config.headerBackIcon,
-                  20,
-                  headerTextColor
-                )
-              ) : (
-                <Text style={[styles.backIcon, { color: headerTextColor }]}>
-                  ‹
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            {screenTitle && (
-              <Text
-                style={[
-                  styles.appBarTitle,
-                  {
-                    color: headerTextColor,
-                    textAlign:
-                      config?.headerTitleAlignment === 'center' ||
-                      !config?.headerTitleAlignment
-                        ? 'center'
-                        : 'left',
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {screenTitle}
+            {config?.headerBackIcon ? (
+              DynamicIcon.renderIcon(
+                config.headerBackIcon,
+                20,
+                headerTextColor
+              )
+            ) : (
+              <Text style={[styles.backIcon, { color: headerTextColor }]}>
+                ‹
               </Text>
             )}
+          </TouchableOpacity>
 
-            {/* Spacer to center title */}
-            <View style={styles.backButton} />
-          </View>
-        )}
+          {screenTitle && (
+            <Text
+              style={[
+                styles.appBarTitle,
+                {
+                  color: headerTextColor,
+                  textAlign:
+                    config?.headerTitleAlignment === 'center' ||
+                    !config?.headerTitleAlignment
+                      ? 'center'
+                      : 'left',
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {screenTitle}
+            </Text>
+          )}
 
-        {/* Body */}
-        {renderBody()}
-      </SafeAreaView>
+          {/* Spacer to center title */}
+          <View style={styles.backButton} />
+        </View>
+      )}
+
+      {/* Body */}
+      {renderBody()}
+
+      {/* FAB */}
+      {showFab && (
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            {
+              backgroundColor:
+                StyleParser.parseColor(fabConfig?.background) ?? '#6366F1',
+            },
+          ]}
+          onPress={() => {
+            if (fabConfig?.on_click) {
+              const cb = ActionHandler.buildCallback(engine, fabConfig.on_click);
+              cb?.();
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          {DynamicIcon.renderIcon(fabConfig.icon, 24, '#FFFFFF')}
+        </TouchableOpacity>
+      )}
+    </>
+  );
+
+  const screenContent = bgImageUrl ? (
+    <ImageBackground
+      source={{ uri: bgImageUrl }}
+      style={[styles.container, { backgroundColor: bgColor }]}
+      resizeMode={resizeMode}
+    >
+      <StatusBar barStyle={barStyle} />
+      {useSafeArea ? (
+        <SafeAreaView style={{ flex: 1 }}>{innerContent}</SafeAreaView>
+      ) : (
+        <View style={{ flex: 1 }}>{innerContent}</View>
+      )}
+    </ImageBackground>
+  ) : (
+    <View style={[styles.container, { backgroundColor: bgColor }]}>
+      <StatusBar barStyle={barStyle} />
+      {useSafeArea ? (
+        <SafeAreaView style={{ flex: 1 }}>{innerContent}</SafeAreaView>
+      ) : (
+        <View style={{ flex: 1 }}>{innerContent}</View>
+      )}
     </View>
   );
+
+  return screenContent;
 };
 
 // ─── Loading Shimmer ──────────────────────────────────────
@@ -356,5 +433,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     fontFamily: 'Inter',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.27,
+    shadowRadius: 4.65,
   },
 });

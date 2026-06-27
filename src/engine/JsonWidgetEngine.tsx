@@ -217,11 +217,28 @@ export class JsonWidgetEngine {
     const bgImage = config.backgroundImage;
 
     if (bgImage) {
+      // Map backgroundFit to React Native resizeMode
+      let resizeMode: 'cover' | 'contain' | 'stretch' | 'center' = 'cover';
+      switch (config.backgroundFit) {
+        case 'contain':
+          resizeMode = 'contain';
+          break;
+        case 'fill':
+          resizeMode = 'stretch';
+          break;
+        case 'none':
+          resizeMode = 'center';
+          break;
+        case 'cover':
+        default:
+          resizeMode = 'cover';
+      }
+
       return (
         <ImageBackground
           source={{ uri: bgImage }}
           style={{ flex: 1, backgroundColor: bgColor ?? 'transparent' }}
-          resizeMode="cover"
+          resizeMode={resizeMode}
         >
           {content}
         </ImageBackground>
