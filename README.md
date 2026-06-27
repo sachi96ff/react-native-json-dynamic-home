@@ -12,7 +12,7 @@ Perfect for Server-Driven UI (SDUI), live A/B testing, no-code/low-code builders
 
 You don't need to write JSON by hand! We provide an advanced **Online Visual Editor** that allows you to drag, drop, and configure your app's UI visually, providing a live preview and instantly generating a JSON URL for your app.
 
-👉 **[Try the Dynamic Home Screen Editor: https://json.dynamichome.in](https://json.dynamichome.in)**
+👉 **[Try the Dynamic Home Screen Editor: https://pagekart.in](https://pagekart.in)**
 
 ### 🔥 Advanced Screen Editor Features
 - **Visual Drag & Drop Interface:** Easily add text, images, buttons, and layouts without touching code.
