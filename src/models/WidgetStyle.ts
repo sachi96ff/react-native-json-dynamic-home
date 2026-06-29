@@ -37,6 +37,8 @@ export interface WidgetStyle {
   letterSpacing?: number;
   lineHeight?: number;
   textAlign?: string;
+  backgroundImage?: string;
+  backgroundFit?: string;
 }
 
 /**
@@ -107,5 +109,7 @@ export function parseWidgetStyle(json: Record<string, any>): WidgetStyle {
     letterSpacing: toDouble(json.letterSpacing ?? json.letter_spacing),
     lineHeight: toDouble(json.lineHeight ?? json.line_height),
     textAlign: (json.textAlign ?? json.text_align) as string | undefined,
+    backgroundImage: (json.backgroundImage ?? json.background_image) as string | undefined,
+    backgroundFit: (json.backgroundFit ?? json.background_fit) as string | undefined,
   };
 }

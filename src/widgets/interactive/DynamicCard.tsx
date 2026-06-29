@@ -1,7 +1,7 @@
 // src/widgets/interactive/DynamicCard.tsx
 
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, ImageBackground, TouchableOpacity, StyleSheet } from 'react-native';
 import {
   WidgetNode,
   getString,
@@ -56,6 +56,8 @@ export class DynamicCard {
     const hasShadow = style?.shadow ?? false;
     const width = StyleParser.resolveWidth(style);
     const height = StyleParser.resolveHeight(style);
+    const backgroundImage = style?.backgroundImage;
+    const backgroundFit = style?.backgroundFit;
 
     const onTap = ActionHandler.buildCallback(
       engine,
@@ -69,11 +71,16 @@ export class DynamicCard {
       // Custom card layout with children
       const alignStr = getString(node, 'alignment') ?? 'start';
       let alignItems: 'flex-start' | 'center' | 'flex-end' = 'flex-start';
-      if (alignStr === 'center') alignItems = 'center';
-      else if (alignStr === 'end') alignItems = 'flex-end';
+      let justifyContent: 'flex-start' | 'center' | 'flex-end' = 'flex-start';
+      if (alignStr === 'center') {
+        alignItems = 'center';
+        justifyContent = 'center';
+      } else if (alignStr === 'end') {
+        alignItems = 'flex-end';
+      }
 
       cardContent = (
-        <View style={{ alignItems }}>
+        <View style={{ alignItems, justifyContent, flex: height != null ? 1 : undefined }}>
           {node.children.map((child, index) => (
             <React.Fragment key={`card_child_${index}`}>
               {engine.buildWidget(child, isDark)}
@@ -86,7 +93,7 @@ export class DynamicCard {
       cardContent = buildDefaultContent(node, isDark);
     }
 
-    const cardStyle = {
+    const cardStyle: any = {
       ...(width != null && { width: width as number }),
       ...(height != null && { height: height as number }),
       ...StyleParser.edgeInsetsToPadding(padding),
@@ -95,6 +102,7 @@ export class DynamicCard {
       borderRadius: radius,
       borderWidth: 1,
       borderColor,
+      overflow: 'hidden' as const,
       ...(hasShadow
         ? {
             shadowColor: '#000000',
@@ -106,7 +114,53 @@ export class DynamicCard {
         : {}),
     };
 
+    // Determine resize mode from backgroundFit
+    const resizeMode: 'cover' | 'contain' | 'stretch' | 'center' =
+      backgroundFit === 'contain' ? 'contain'
+      : backgroundFit === 'fill' ? 'stretch'
+      : 'cover';
+
+    const renderCard = (content: React.ReactElement) => {
+      if (backgroundImage) {
+        return (
+          <View style={cardStyle}>
+            <ImageBackground
+              source={{ uri: backgroundImage }}
+              resizeMode={resizeMode}
+              style={{ flex: 1, ...StyleParser.edgeInsetsToPadding(padding) }}
+              imageStyle={{ borderRadius: radius }}
+            >
+              {content}
+            </ImageBackground>
+          </View>
+        );
+      }
+      return <View style={cardStyle}>{content}</View>;
+    };
+
+    // When using backgroundImage, remove padding from outer container (applied on ImageBackground)
+    if (backgroundImage) {
+      delete cardStyle.paddingTop;
+      delete cardStyle.paddingBottom;
+      delete cardStyle.paddingLeft;
+      delete cardStyle.paddingRight;
+    }
+
     if (onTap) {
+      if (backgroundImage) {
+        return (
+          <TouchableOpacity onPress={onTap} activeOpacity={0.8} style={cardStyle}>
+            <ImageBackground
+              source={{ uri: backgroundImage }}
+              resizeMode={resizeMode}
+              style={{ flex: 1, ...StyleParser.edgeInsetsToPadding(padding) }}
+              imageStyle={{ borderRadius: radius }}
+            >
+              {cardContent}
+            </ImageBackground>
+          </TouchableOpacity>
+        );
+      }
       return (
         <TouchableOpacity
           onPress={onTap}
@@ -118,7 +172,7 @@ export class DynamicCard {
       );
     }
 
-    return <View style={cardStyle}>{cardContent}</View>;
+    return renderCard(cardContent);
   }
 }
 

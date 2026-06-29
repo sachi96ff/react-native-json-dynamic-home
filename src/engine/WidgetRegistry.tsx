@@ -1,7 +1,7 @@
 // src/engine/WidgetRegistry.tsx
 
 import React from 'react';
-import { View, Text, Image, Switch as RNSwitch, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { WidgetNode } from '../models/WidgetNode';
 import type { JsonWidgetEngine } from './JsonWidgetEngine';
 import { StyleParser } from './StyleParser';
@@ -148,11 +148,9 @@ export class WidgetRegistry {
     this.registerEngine('Stack', this.buildStack);
     this.registerEngine('Wrap', this.buildWrap);
     this.registerSimple('Chip', this.buildChip);
-    this.registerSimple('TextInput', this.buildTextInput);
     this.registerSimple('ProgressBar', this.buildProgressBar);
     this.registerEngine('Badge', this.buildBadge);
     this.registerSimple('Avatar', this.buildAvatar);
-    this.registerSimple('Switch', this.buildSwitch);
   }
 
   /** Built-in divider widget. */
@@ -240,33 +238,6 @@ export class WidgetRegistry {
     );
   }
 
-  /** TextInput widget — text field preview. */
-  private buildTextInput(node: WidgetNode, isDark: boolean): React.ReactElement {
-    const label = node.properties.label ?? '';
-    const placeholder = node.properties.placeholder ?? 'Enter text...';
-    const hint = node.properties.hint ?? '';
-    const required = node.properties.required ?? false;
-    const radius = node.style?.radius ?? 12;
-
-    return (
-      <View style={{ width: '100%' }}>
-        {label ? (
-          <View style={{ flexDirection: 'row', marginBottom: 6 }}>
-            <Text style={{ fontSize: 13, fontWeight: '500', color: '#374151' }}>{label}</Text>
-            {required && <Text style={{ color: '#EF4444', marginLeft: 2 }}> *</Text>}
-          </View>
-        ) : null}
-        <View style={{
-          borderWidth: 1, borderColor: '#D1D5DB', borderRadius: radius,
-          padding: 12, backgroundColor: '#FFFFFF',
-        }}>
-          <Text style={{ color: '#9CA3AF', fontSize: 14 }}>{placeholder}</Text>
-        </View>
-        {hint ? <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{hint}</Text> : null}
-      </View>
-    );
-  }
-
   /** ProgressBar widget — linear progress indicator. */
   private buildProgressBar(node: WidgetNode, isDark: boolean): React.ReactElement {
     const value = Math.min(1, Math.max(0, node.properties.value ?? 0.65));
@@ -350,29 +321,6 @@ export class WidgetRegistry {
             {text.substring(0, 2)}
           </Text>
         )}
-      </View>
-    );
-  }
-
-  /** Switch widget — toggle switch. */
-  private buildSwitch(node: WidgetNode, isDark: boolean): React.ReactElement {
-    const label = node.properties.label ?? '';
-    const subtitle = node.properties.subtitle ?? '';
-    const value = node.properties.value ?? false;
-    const activeColor = node.properties.active_color ?? '#6366F1';
-
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-        <View style={{ flex: 1 }}>
-          {label ? <Text style={{ fontSize: 14, fontWeight: '500', color: '#1E293B' }}>{label}</Text> : null}
-          {subtitle ? <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{subtitle}</Text> : null}
-        </View>
-        <RNSwitch
-          value={value}
-          disabled
-          trackColor={{ false: '#D1D5DB', true: activeColor }}
-          thumbColor={'white'}
-        />
       </View>
     );
   }

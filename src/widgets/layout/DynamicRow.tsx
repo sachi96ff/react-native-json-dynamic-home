@@ -24,6 +24,12 @@ export class DynamicRow {
         getString(node, 'cross_axis_alignment')
     );
     const spacing = getDouble(node, 'spacing', 0) ?? 0;
+    const padding = node.style?.padding
+      ? StyleParser.edgeInsetsToPadding(node.style.padding)
+      : {};
+    const margin = node.style?.margin
+      ? StyleParser.edgeInsetsToMargin(node.style.margin)
+      : {};
 
     const children: React.ReactElement[] = [];
     for (let i = 0; i < node.children.length; i++) {
@@ -45,6 +51,8 @@ export class DynamicRow {
           flexDirection: 'row',
           justifyContent: mainAxis,
           alignItems: crossAxis,
+          ...padding,
+          ...margin,
         }}
       >
         {children}

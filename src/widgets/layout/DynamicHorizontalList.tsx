@@ -22,7 +22,7 @@ export class DynamicHorizontalList {
     const itemWidth =
       getDouble(node, 'item_width') ?? getDouble(node, 'itemWidth');
     const spacing = getDouble(node, 'spacing', 12) ?? 12;
-    const height = (StyleParser.resolveHeight(node.style) as number) ?? 180;
+    const height = (StyleParser.resolveHeight(node.style) as number | undefined);
     const padding = node.style?.padding;
 
     // Gather items from children or properties.items
@@ -36,13 +36,14 @@ export class DynamicHorizontalList {
     if (items.length === 0) return <View />;
 
     return (
-      <View style={{ height }}>
+      <View style={height != null ? { height } : undefined}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={
-            padding ? StyleParser.edgeInsetsToPadding(padding) : {}
-          }
+          contentContainerStyle={{
+            ...(padding ? StyleParser.edgeInsetsToPadding(padding) : {}),
+            alignItems: 'flex-start',
+          }}
         >
           {items.map((item, index) => (
             <View
